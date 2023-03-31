@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Translation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+</head>
+<body>
+<style>
+    #text-container {
+        cursor: pointer;
+    }
+
+    .selected-text {
+        background-color: yellow;
+    }
+</style>
+<!-- Text Area and Buttons -->
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <textarea id="input-text" class="form-control" rows="10"></textarea>
+            <div id="text-container"></div>
+            <button id="reset-btn" class="btn btn-danger mt-2">Reset</button>
+            <button id="insert-btn" class="btn btn-success mt-2">Insert</button>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function () {
+        let selectedText = "";
+
+        function getSelectedText() {
+            if (window.getSelection) {
+                return window.getSelection().toString();
+            } else if (document.selection && document.selection.type !== "Control") {
+                return document.selection.createRange().text;
+            }
+            return "";
+        }
+
+        function translateText(text, callback) {
+            const apiKey = "API_KEY";
+            const apiUrl = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+            const requestData = {
+                q: text,
+                //source: 'auto',
+                target: 'en',
+            };
+
+            $.post(apiUrl, requestData, function (response) {
+                callback(response.data.translations[0].translatedText);
+            }).fail(function () {
+                callback("Translation failed.");
+            });
+        }
+
+        function showPopover(element, content) {
+            $(element).popover({
+                content: content,
+                placement: "top",
+                trigger: "manual",
+                html: true,
+            }).popover('show');
+        }
+
+        function hidePopover(element) {
+            $(element).popover('hide');
+        }
+
+        $("#text-container").on("mouseup", function (e) {
+            const selected = getSelectedText();
+
+            if (selected.length > 0) {
+                selectedText = selected;
+                const $selectedElement = $("<span>").addClass("selected-text").text(selectedText);
+                window.getSelection().getRangeAt(0).surroundContents($selectedElement[0]);
+
+                translateText(selectedText, function (translatedText) {
+                    showPopover(".selected-text", translatedText);
+                });
+            }
+        });
+
+        $("#text-container").on("mousedown", function () {
+            if (selectedText.length > 0) {
+                hidePopover(".selected-text");
+                const $selectedElement = $(".selected-text");
+                $selectedElement.replaceWith(selectedText);
+                selectedText = "";
+            }
+        });
+
+        // Reset and Insert buttons functionality
+        $("#reset-btn").on("click", function () {
+            if (selectedText.length > 0) {
+                hidePopover(".selected-text");
+                const $selectedElement = $(".selected-text");
+                $selectedElement.replaceWith(selectedText);
+                selectedText = "";
+            }
+            $("#text-container").html("");
+            $("#input-text").val("");
+            $("#input-text").show();
+            $("#insert-btn").show();
+        });
+
+        $("#insert-btn").on("click", function () {
+            const inputText = $("#input-text").val();
+            $("#text-container").html(inputText);
+            $("#input-text").hide();
+            $("#insert-btn").hide();
+        });
+
+        $(document).on("click", function (e) {
+            if (!$(e.target).closest(".popover").length && !$(e.target).hasClass("selected-text")) {
+                // Ignore clicks that are triggered by text selection
+                if (window.getSelection && window.getSelection().toString()) {
+                    return;
+                } else if (document.selection && document.selection.type !== "Control" && document.selection.createRange().text) {
+                    return;
+                }
+
+                if (selectedText.length > 0) {
+                    hidePopover(".selected-text");
+                    const $selectedElement = $(".selected-text");
+                    $selectedElement.replaceWith(selectedText);
+                    selectedText = "";
+                }
+            }
+        });
+
+    });
+</script>
+
+</body>
+</html>
+
